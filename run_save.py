@@ -10,7 +10,6 @@ from utils import CTCLabelConverter, AttnLabelConverter
 from dataset import RawDataset, AlignCollate
 from model import Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-import pickle
 
 
 def demo(opt):
@@ -44,10 +43,6 @@ def demo(opt):
 
     # predict
     model.eval()
-
-    with open(opt.pkl_file_path, 'rb') as f:
-        ocr_dict = pickle.load(f)
-
     with torch.no_grad():
         for image_tensors, image_path_list in demo_loader:
             batch_size = image_tensors.size(0)
@@ -73,12 +68,12 @@ def demo(opt):
                 preds_str = converter.decode(preds_index, length_for_pred)
 
 
-            # log = open(f'./log_demo_result.txt', 'a')
-            # dashed_line = '-' * 80
-            # head = f'{"image_path":25s}\t{"predicted_labels":25s}\tconfidence score'
+            log = open(f'./log_demo_result.txt', 'a')
+            dashed_line = '-' * 80
+            head = f'{"image_path":25s}\t{"predicted_labels":25s}\tconfidence score'
             
-            # print(f'{dashed_line}\n{head}\n{dashed_line}')
-            # log.write(f'{dashed_line}\n{head}\n{dashed_line}\n')
+            print(f'{dashed_line}\n{head}\n{dashed_line}')
+            log.write(f'{dashed_line}\n{head}\n{dashed_line}\n')
 
             preds_prob = F.softmax(preds, dim=2)
             preds_max_prob, _ = preds_prob.max(dim=2)
@@ -92,14 +87,9 @@ def demo(opt):
                 confidence_score = pred_max_prob.cumprod(dim=0)[-1]
 
                 print(f'{img_name:25s}\t{pred:25s}\t{confidence_score:0.4f}')
-                img_pure_name = img_name.split('/')[-1].split('_')[0]
-                token_id = int(img_name.split('/')[-1].split('_')[-1].replace('.jpg', ''))
-                ocr_dict[img_pure_name]['token_{:0>3d}'.format(token_id)]['word'] = pred
-                # log.write(f'{img_name:25s}\t{pred:25s}\t{confidence_score:0.4f}\n')
+                log.write(f'{img_name:25s}\t{pred:25s}\t{confidence_score:0.4f}\n')
 
-            # log.close()
-    with open(pkl_file_path.replace('word', 'refine_word'), 'wb') as f:
-        pickle.dump(ocr_dict, f)
+            log.close()
 
 
 if __name__ == '__main__':
@@ -126,7 +116,6 @@ if __name__ == '__main__':
     parser.add_argument('--output_channel', type=int, default=512,
                         help='the number of output channel of Feature extractor')
     parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
-    parser.add_argument('--pkl_file_path', type=str, required=True, help='Transformation stage. None|TPS')
 
     opt = parser.parse_args()
 
